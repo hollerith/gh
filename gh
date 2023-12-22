@@ -1,0 +1,58 @@
+#!/bin/bash
+
+# Check if GITHUB_TOKEN is set in the environment
+if [ -z "$GITHUB_TOKEN" ]; then
+    echo "GITHUB_TOKEN is not set. Please set your GitHub token in the environment."
+    exit 1
+fi
+
+# Function to clone a repository
+gh_repo_clone() {
+    git clone "$1"
+}
+
+# Function to create a new repository
+gh_repo_create() {
+    local repo_name="$1"
+    local visibility="private"
+
+    if [ "$2" == "--public" ]; then
+        visibility="public"
+    fi
+
+    curl -H "Authorization: token $GITHUB_TOKEN" -X POST \
+         -d "{\"name\":\"$repo_name\", \"private\":$([ "$visibility" == "private" ] && echo "true" || echo "false")}" \
+         "https://api.github.com/user/repos"
+}
+
+# Function to check out a pull request
+gh_pr_checkout() {
+    git fetch origin pull/"$1"/head:pr-"$1"
+    git checkout pr-"$1"
+}
+
+# Function to list pull requests
+gh_pr_list() {
+    curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$1/pulls"
+}
+
+# Function to view a pull request
+gh_pr_view() {
+    curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$1/pulls/$1"
+}
+
+# Main execution
+if [ "$1" == "repo" ] && [ "$2" == "clone" ]; then
+    gh_repo_clone "$3"
+elif [ "$1" == "repo" ] && [ "$2" == "create" ]; then
+    gh_repo_create "$3" "$4"
+elif [ "$1" == "pr" ] && [ "$2" == "checkout" ]; then
+    gh_pr_checkout "$3"
+elif [ "$1" == "pr" ] && [ "$2" == "list" ]; then
+    gh_pr_list "$3"
+elif [ "$1" == "pr" ] && [ "$2" == "view" ]; then
+    gh_pr_view "$3"
+else
+    echo "Unknown command or incorrect usage"
+fi
+
