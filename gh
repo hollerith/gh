@@ -41,7 +41,41 @@ gh_pr_view() {
     curl -H "Authorization: token $GITHUB_TOKEN" "https://api.github.com/repos/$1/pulls/$1"
 }
 
-# Main execution
+# Function to create a pull request
+gh_pr_create() {
+    # Get current branch name
+    local base_branch="$(git branch --show-current)"
+
+    # Add all changes
+    git add .
+
+    # Commit with a message from the user
+    echo "Enter your commit message:"
+    read commit_message
+    git commit -m "$commit_message"
+
+    # Create and switch to a new branch
+    echo "Enter your new branch name:"
+    read new_branch_name
+    git checkout -b "$new_branch_name"
+
+    # Push the new branch
+    git push -u origin "$new_branch_name"
+
+    # Prompt for PR title and description
+    echo "Enter the title for your PR:"
+    read pr_title
+    echo "Enter the description for your PR:"
+    read pr_description
+
+    # Create the pull request
+    local repo_full_name="$(git config --get remote.origin.url | sed -e 's/.*:\/\/github.com\///' -e 's/\.git//')"
+    curl -H "Authorization: token $GITHUB_TOKEN" -X POST \
+         -d "{\"title\": \"$pr_title\", \"body\": \"$pr_description\", \"head\": \"$new_branch_name\", \"base\": \"$base_branch\"}" \
+         "https://api.github.com/repos/$repo_full_name/pulls"
+}
+
+# Main
 if [ "$1" == "repo" ] && [ "$2" == "clone" ]; then
     gh_repo_clone "$3"
 elif [ "$1" == "repo" ] && [ "$2" == "create" ]; then
@@ -52,7 +86,8 @@ elif [ "$1" == "pr" ] && [ "$2" == "list" ]; then
     gh_pr_list "$3"
 elif [ "$1" == "pr" ] && [ "$2" == "view" ]; then
     gh_pr_view "$3"
+elif [ "$1" == "pr" ] && [ "$2" == "create" ]; then
+    gh_pr_create
 else
     echo "Unknown command or incorrect usage"
 fi
-
